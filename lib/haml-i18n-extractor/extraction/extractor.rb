@@ -66,7 +66,8 @@ module Haml
         @haml_writer.type = type if type
         assign_replacements
         validate_haml(@haml_writer.body)
-        @yaml_writer.write_file
+        # don't do anything to the yaml file
+        # @yaml_writer.write_file
         @haml_writer.write_file
       end
 
@@ -120,10 +121,10 @@ module Haml
         elsif user_action.next?
           raise AbortFile, "stopping to process the rest of the file"
         elsif user_action.replace_line?
-          add_to_yaml_info(line_no, replacement_info)
+          # add_to_yaml_info(line_no, replacement_info)
           add_to_body(replacement)
         elsif user_action.no_replace?
-          add_to_yaml_info(line_no, [Haml::I18n::Extractor::ReplacerResult.new(nil, nil, nil, false, nil).info])
+          # add_to_yaml_info(line_no, [Haml::I18n::Extractor::ReplacerResult.new(nil, nil, nil, false, nil).info])
           add_to_body(orig_line)
         end
 

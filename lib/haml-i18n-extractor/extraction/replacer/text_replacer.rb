@@ -32,10 +32,6 @@ module Haml
           result.info
         end
 
-        def interpolation_helper
-          Haml::I18n::Extractor::InterpolationHelper.new(@text_to_replace, t_name, @options)
-        end
-
         def orig_interpolated?
           interpolated?(@orig_line)
         end
@@ -44,7 +40,11 @@ module Haml
         def modified_line
           return @full_line if has_been_translated?(@full_line) && !@options[:add_filename_prefix]
           full_line = @full_line.dup
-          keyname = orig_interpolated? ? interpolation_helper.keyname_with_vars : t_method
+          keyname = if orig_interpolated?
+                      Haml::I18n::Extractor::InterpolationHelper.new(@text_to_replace, interpolated_t_name, @options).keyname_with_vars
+                    else
+                      t_method
+                    end
           @text_to_replace = remove_quotes_from_interpolated_text(@text_to_replace)
           gsub_replacement!(full_line, @text_to_replace, keyname)
           apply_ruby_evaling!(full_line, keyname)
@@ -72,8 +72,9 @@ module Haml
             text_to_replace.match T_REGEX
             name = normalized_name($1.dup)
           else
-            name = normalized_name(text_to_replace.dup)
-            name = normalized_name(orig_line.dup) if name.empty?
+            # for simple strings, return the original line as the key,
+            # which we'll stick inside the _t method in the template
+            name = orig_line
           end
 
           if (@options[:add_filename_prefix])
@@ -86,14 +87,48 @@ module Haml
           name
         end
 
+        # since the gem was assuming that the value inside the template would look like
+        # t('namespaced.keyname') and doesn't extract the variables until later,
+        # we need to write our own t_name method that handles variable extraction at this point
+        def interpolated_t_name(to_replace = @text_to_replace, orig_line = @orig_line)
+          text_to_replace = to_replace.dup
+          if has_been_translated?(text_to_replace)
+            text_to_replace.match T_REGEX
+            name = normalized_name($1.dup)
+          else
+            name = interpolations
+          end
+
+          name
+        end
+
+        # recurse through the string, finding bits of interpolated ruby code
+        # and use the InterpolationHelper#extract_interpolation to replace them
+        # with the same variable name that will be used by InterpolationHelper#keyname_with_vars
+        # and wrap each of those in {}
+        def interpolations(new_string = "", str = @text_to_replace)
+          return new_string if str.nil? || str.empty?
+          return new_string + str if !interpolated?(str)
+
+          scanner = StringScanner.new(str)
+          scanner.scan_until(/\#{.*?}/)
+
+          match = scanner.matched
+          interpolated_code = Haml::I18n::Extractor::InterpolationHelper.new("", "").extract_interpolation(match)
+          new_string += scanner.pre_match + "{#{normalized_name(interpolated_code)}}"
+
+          interpolations(new_string, scanner.rest)
+        end
+
         # t('.the_key_to_use')
         def t_method
           with_translate_method(t_name)
         end
 
         def with_translate_method(name)
-          prefix = @options[:add_filename_prefix] ? '' : '.'
-          "t('#{prefix}#{name}')"
+          # use sprintf to allow for strings that have single quotes in them
+          # and wrap strings in our custom _t method
+          sprintf(%{_t("%s")}, name)
         end
 
         # adds the = to the right place in the string ... = t()
@@ -110,7 +145,7 @@ module Haml
                 end
               end
             elsif @line_type == :plain || (@line_type == :script && !already_evaled?(full_line))
-              str.gsub!(str, "= "+str)
+              str.gsub!(str, "= " + str)
             end
           end
         end

@@ -17,7 +17,8 @@ module Haml
 
         def keyname_with_vars()
           prefix = @options[:add_filename_prefix] ? '' : '.'
-          "t('#{prefix}#{@t_name}', #{interpolated_vars})"
+          # we'll be using our own _t method & no prefix
+          "_t('#{@t_name}', #{interpolated_vars})"
         end
 
         def interpolated_vars

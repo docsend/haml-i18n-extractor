@@ -17,7 +17,9 @@ module Haml
 
         def keyname_with_vars()
           prefix = @options[:add_filename_prefix] ? '' : '.'
-          "t('#{prefix}#{@t_name}', #{interpolated_vars})"
+          # use sprintf to allow for strings that have single quotes in them
+          # and wrap strings in our custom _t method
+          sprintf(%{_t("%s", %s)}, @t_name, interpolated_vars)
         end
 
         def interpolated_vars

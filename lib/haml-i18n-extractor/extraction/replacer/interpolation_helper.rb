@@ -19,7 +19,7 @@ module Haml
           prefix = @options[:add_filename_prefix] ? '' : '.'
           # use sprintf to allow for strings that have single quotes in them
           # and wrap strings in our custom _t method
-          sprintf(%{_t("%s", %s)}, @t_name, interpolated_vars)
+          sprintf(%{_t("%s", %s, description: "")}, @t_name, interpolated_vars)
         end
 
         def interpolated_vars

@@ -128,7 +128,7 @@ module Haml
         def with_translate_method(name)
           # use sprintf to allow for strings that have single quotes in them
           # and wrap strings in our custom _t method
-          sprintf(%{_t("%s")}, name)
+          sprintf(%{_t("%s", description: "")}, name)
         end
 
         # adds the = to the right place in the string ... = t()
